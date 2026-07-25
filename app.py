@@ -1,6 +1,9 @@
 import streamlit as st
 from supabase import create_client
-import pandas as pd
+import pandas as 
+import google.generativeai as genai
+import hashlib
+import json
 from Risk_classer import Risk
 from streamlit_autorefresh import st_autorefresh
 
@@ -10,6 +13,11 @@ url = st.secrets['SUPABASE_URL']
 key = st.secrets['SUPABASE_KEY']
 
 supabase = create_client(url, key)
+
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+gemini_model = genai.GenerativeModel("gemini-2.5-flash")
+
+
 st_autorefresh(interval=120000, key='datarefresh')
 
 st.set_page_config('SOLAR INVERTER MAINTENANCE SYSTEM', layout='wide')
@@ -88,7 +96,46 @@ cols[2].metric("Temperature (°C)", f"{row['temperature']:.1f}")
 cols[3].metric("Power Factor", f"{row['powerfactor']:.2f}")
 cols[4].metric("Frequency (Hz)", f"{row['frequency']:.2f}")
 cols[5].metric("Humidity (%)", f"{row['humidity']:.1f}")
+
+
+ # ---------------- AI Status Report (Gemini free tier) ----------------
  
+def snapshot_key(row: dict, risk_result: dict) -> str:
+    raw = json.dumps(row, sort_keys=True, default=str) + str(risk_result["risk_score"])
+    return hashlib.sha256(raw.encode()).hexdigest()
+ 
+ 
+@st.cache_data(show_spinner=False)
+def get_ai_report(_key: str, row: dict, risk_result: dict) -> str:
+    prompt = f"""You are a solar inverter maintenance advisor.
+ 
+Current readings:
+- Voltage: {row['voltage']} V
+- Current: {row['current']} A
+- Temperature: {row['temperature']} degC
+- Power factor: {row['powerfactor']}
+- Frequency: {row['frequency']} Hz
+- Humidity: {row['humidity']} %
+ 
+Risk score: {risk_result['risk_score']} / 11 ({risk_result['risk_severity']})
+ 
+In under 80 words: explain the current status in plain language, name
+which parameter(s) are pushing the score toward this tier, and give
+one concrete next action (monitor, inspect, or urgent shutdown).
+"""
+    try:
+        resp = gemini_model.generate_content(prompt)
+        return resp.text
+    except Exception as e:
+        return f"AI report unavailable right now ({e})."
+ 
+ 
+st.subheader("🤖 AI Maintenance Advisor")
+ai_key = snapshot_key(row, result)
+report = get_ai_report(ai_key, row, result)
+st.info(report)
+
+
 
 df1 = pd.DataFrame(response1.data)
 df1['timestamp'] = pd.to_datetime(df['timestamp'])
