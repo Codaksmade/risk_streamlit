@@ -1,6 +1,6 @@
 import streamlit as st
 from supabase import create_client
-import pandas as 
+import pandas as pd
 import google.generativeai as genai
 import hashlib
 import json
