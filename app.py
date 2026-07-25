@@ -93,7 +93,7 @@ cols[5].metric("Humidity (%)", f"{row['humidity']:.1f}")
 df1 = pd.DataFrame(response1.data)
 df1['timestamp'] = pd.to_datetime(df['timestamp'])
 # --- Raw sensor values over time ---
-st.subheader("Sensor values over time")
+st.subheader("Sensors Performance over time")
 st.line_chart(df1[["voltage", "current", "temperature", "powerfactor"]])
 
 # --- Raw data table ---
