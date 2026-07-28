@@ -80,4 +80,5 @@ class Risk:
         total = sum(scores.values())
         risk_severity = self.risk_grouper(total)
         return {
-            "risk_severity" : risk_severity}
+            "risk_severity" : risk_severity,
+            'risk_score' : total}

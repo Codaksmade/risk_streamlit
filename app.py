@@ -1,7 +1,7 @@
 import streamlit as st
 from supabase import create_client
 import pandas as pd
-import google.generativeai as genai
+from groq import Groq
 import hashlib
 import json
 from Risk_classer import Risk
@@ -14,9 +14,7 @@ key = st.secrets['SUPABASE_KEY']
 
 supabase = create_client(url, key)
 
-genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-gemini_model = genai.GenerativeModel("gemini-2.5-flash")
-
+groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 st_autorefresh(interval=120000, key='datarefresh')
 
@@ -100,13 +98,13 @@ cols[5].metric("Humidity (%)", f"{row['humidity']:.1f}")
 
  # ---------------- AI Status Report (Gemini free tier) ----------------
  
-def snapshot_key(row: dict, risk_result: dict) -> str:
-    raw = json.dumps(row, sort_keys=True, default=str) + str(risk_result["risk_score"])
+def snapshot_key(row: dict, result: dict) -> str:
+    raw = json.dumps(row, sort_keys=True, default=str) + str(result["risk_score"])
     return hashlib.sha256(raw.encode()).hexdigest()
  
  
 @st.cache_data(show_spinner=False)
-def get_ai_report(_key: str, row: dict, risk_result: dict) -> str:
+def get_ai_report(_key: str, row: dict, result: dict) -> str:
     prompt = f"""You are a solar inverter maintenance advisor.
  
 Current readings:
@@ -117,15 +115,19 @@ Current readings:
 - Frequency: {row['frequency']} Hz
 - Humidity: {row['humidity']} %
  
-Risk score: {risk_result['risk_score']} / 11 ({risk_result['risk_severity']})
+Risk score: {result['risk_score']} / 11 ({result['risk_severity']})
  
 In under 80 words: explain the current status in plain language, name
 which parameter(s) are pushing the score toward this tier, and give
 one concrete next action (monitor, inspect, or urgent shutdown).
 """
     try:
-        resp = gemini_model.generate_content(prompt)
-        return resp.text
+        resp = groq_client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=300,
+        )
+        return resp.choices[0].message.content
     except Exception as e:
         return f"AI report unavailable right now ({e})."
  
@@ -134,7 +136,6 @@ st.subheader("🤖 AI Maintenance Advisor")
 ai_key = snapshot_key(row, result)
 report = get_ai_report(ai_key, row, result)
 st.info(report)
-
 
 
 df1 = pd.DataFrame(response1.data)
