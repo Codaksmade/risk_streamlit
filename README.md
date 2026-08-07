@@ -47,8 +47,7 @@ You can try the live demo here:
 
 ## 🌱 Future Improvements
 - Add **machine learning models** for predictive risk assessment  
-- Expand **sensor integration** for broader solar system monitoring  
-- Implement **alert notifications** (email/SMS) for critical states  
+- Expand **sensor integration** for broader solar system monitoring   
 - Enhance **visual analytics** with historical trend tracking  
 
 ---
